@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Rubrik Pentaksiran Futsal MPU3421</title>
+  <title>Rekod Pentaksiran Futsal MPU3421</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
   <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
@@ -23,17 +23,11 @@
     .score-cell {
       @apply bg-gray-100 font-medium;
     }
-    .student-card {
-      @apply p-4 border border-gray-200 rounded-lg cursor-pointer transition-all duration-200 hover:shadow-md hover:border-blue-300;
+    .dropdown-item {
+      @apply p-2 hover:bg-blue-50 border-b border-gray-100 cursor-pointer;
     }
-    .student-card.selected {
-      @apply border-2 border-blue-600 bg-blue-50 shadow-md;
-    }
-    .student-name {
-      @apply font-semibold text-gray-800;
-    }
-    .student-info {
-      @apply text-sm text-gray-600;
+    .dropdown-item.selected {
+      @apply bg-blue-100 border-l-4 border-l-blue-600;
     }
   </style>
 </head>
@@ -41,7 +35,7 @@
   <div class="container mx-auto px-4 py-8 max-w-6xl">
     <!-- Header -->
     <div class="bg-white shadow-lg rounded-lg p-6 mb-8 text-center">
-      <h1 class="text-3xl font-bold text-blue-800">RUBRIK PEMARKAHAN FUTSAL MPU3421</h1>
+      <h1 class="text-3xl font-bold text-blue-800">REKOD PEMARKAHAN FUTSAL MPU3421</h1>
       <p class="text-gray-600 mt-2">PISMP AMBILAN OGOS 2023 – JULAI 2028 & OGOS 2024 – JULAI 2028 (SSM)</p>
       <p class="text-lg font-semibold text-gray-700">KOKURIKULUM – PERMAINAN FUTSAL</p>
     </div>
@@ -50,36 +44,54 @@
     <div class="bg-white shadow-md rounded-lg p-6 mb-8">
       <h2 class="text-xl font-semibold text-gray-800 mb-4">Pilih Pelajar</h2>
       
-      <!-- Student Search -->
-      <div class="mb-6">
-        <input 
-          type="text" 
-          x-model="searchQuery" 
-          placeholder="Cari pelajar berdasarkan nama, no matrik atau kumpulan..." 
-          class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none shadow-sm"
-        />
-      </div>
-      
-      <!-- Student Grid -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <template x-for="student in filteredStudents()" :key="student.id">
-          <div 
-            :class="selectedStudent === student.id ? 'student-card selected' : 'student-card'"
-            @click="selectStudent(student.id)"
-          >
-            <div class="student-name" x-text="student.name"></div>
-            <div class="student-info">No Matrik: <span x-text="student.matrix"></span></div>
-            <div class="student-info">Kumpulan: <span x-text="student.group"></span></div>
+      <!-- Dropdown Student Selection -->
+      <div class="relative mb-6" x-data="{ open: false }">
+        <label class="block text-sm font-medium text-gray-700 mb-2">Senarai Pelajar:</label>
+        <button 
+          @click="open = !open"
+          class="w-full p-3 text-left border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none shadow-sm"
+          :class="{ 'rounded-b-none': open }"
+        >
+          <span x-text="selectedStudent ? students.find(s => s.id === selectedStudent).name : 'Pilih pelajar...'" 
+                :class="{ 'text-gray-500': !selectedStudent }"></span>
+          <div class="absolute right-3 top-1/2 transform -translate-y-1/2">
+            <svg :class="{ 'rotate-180': open }" class="w-5 h-5 text-gray-500 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+            </svg>
           </div>
-        </template>
-      </div>
-      
-      <!-- No Results -->
-      <template x-if="filteredStudents().length === 0">
-        <div class="text-center py-8 text-gray-500">
-          Tiada pelajar ditemui. Sila cuba carian lain.
+        </button>
+        
+        <!-- Dropdown List -->
+        <div 
+          x-show="open" 
+          @click.away="open = false"
+          class="absolute z-10 w-full border border-gray-300 rounded-b-lg bg-white shadow-lg max-h-60 overflow-y-auto"
+        >
+          <div class="p-2 bg-gray-50 sticky top-0 border-b">
+            <input 
+              type="text" 
+              placeholder="Cari pelajar..." 
+              x-model="searchQuery"
+              @click.stop
+              class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              @keydown.tab.prevent
+            />
+          </div>
+          
+          <template x-for="student in filteredStudents()" :key="student.id">
+            <div 
+              class="dropdown-item"
+              :class="{ 'selected': selectedStudent === student.id }"
+              @click="selectedStudent = student.id; open = false"
+              x-text="student.name"
+            ></div>
+          </template>
+          
+          <div x-show="filteredStudents().length === 0" class="p-4 text-center text-gray-500 text-sm">
+            Tiada pelajar ditemui.
+          </div>
         </div>
-      </template>
+      </div>
       
       <!-- Selected Student Summary -->
       <template x-if="selectedStudent">
@@ -425,7 +437,7 @@
           <div class="p-5 bg-gradient-to-br from-green-50 to-green-100 rounded-xl border border-green-200">
             <div class="flex items-center mb-2">
               <svg class="w-5 h-5 text-green-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                <path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
               </svg>
               <p class="text-sm font-medium text-green-800">Tugasan 2 (Simulasi)</p>
             </div>
@@ -507,26 +519,6 @@
         comments: {
           practical: '',
           simulation: ''
-        },
-        
-        selectStudent(id) {
-          this.selectedStudent = id;
-          // Initialize scores if not already present
-          if (!this.scores.practical.kick) {
-            this.scores.practical = {
-              kick: '',
-              pass: '',
-              shoot: '',
-              goalkeeper: '',
-              official: ''
-            };
-          }
-          if (!this.scores.simulation.cognitive) {
-            this.scores.simulation = {
-              cognitive: '',
-              communication: ''
-            };
-          }
         },
         
         getStudentName() {
