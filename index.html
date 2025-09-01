@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Rubrik Pentaksiran Futsal MPU3421</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    .rubric-cell {
+      @apply p-3 border border-gray-300 text-center text-sm leading-tight;
+    }
+    .rubric-header {
+      @apply bg-blue-600 text-white font-semibold p-3 border border-blue-700 text-center;
+    }
+    .criteria-header {
+      @apply bg-gray-200 font-medium p-3 border border-gray-300 text-left text-sm;
+    }
+    .score-cell {
+      @apply bg-gray-100 font-medium;
+    }
+    .student-card {
+      @apply p-4 border border-gray-200 rounded-lg cursor-pointer transition-all duration-200 hover:shadow-md hover:border-blue-300;
+    }
+    .student-card.selected {
+      @apply border-2 border-blue-600 bg-blue-50 shadow-md;
+    }
+    .student-name {
+      @apply font-semibold text-gray-800;
+    }
+    .student-info {
+      @apply text-sm text-gray-600;
+    }
+  </style>
+</head>
+<body x-data="gradingApp()" class="bg-gray-50 min-h-screen">
+  <div class="container mx-auto px-4 py-8 max-w-6xl">
+    <!-- Header -->
+    <div class="bg-white shadow-lg rounded-lg p-6 mb-8 text-center">
+      <h1 class="text-3xl font-bold text-blue-800">RUBRIK PEMARKAHAN FUTSAL MPU3421</h1>
+      <p class="text-gray-600 mt-2">PISMP AMBILAN OGOS 2023 – JULAI 2028 & OGOS 2024 – JULAI 2028 (SSM)</p>
+      <p class="text-lg font-semibold text-gray-700">KOKURIKULUM – PERMAINAN FUTSAL</p>
+    </div>
+
+    <!-- Student Selection & Summary -->
+    <div class="bg-white shadow-md rounded-lg p-6 mb-8">
+      <h2 class="text-xl font-semibold text-gray-800 mb-4">Pilih Pelajar</h2>
+      
+      <!-- Student Search -->
+      <div class="mb-6">
+        <input 
+          type="text" 
+          x-model="searchQuery" 
+          placeholder="Cari pelajar berdasarkan nama, no matrik atau kumpulan..." 
+          class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none shadow-sm"
+        />
+      </div>
+      
+      <!-- Student Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <template x-for="student in filteredStudents()" :key="student.id">
+          <div 
+            :class="selectedStudent === student.id ? 'student-card selected' : 'student-card'"
+            @click="selectStudent(student.id)"
+          >
+            <div class="student-name" x-text="student.name"></div>
+            <div class="student-info">No Matrik: <span x-text="student.matrix"></span></div>
+            <div class="student-info">Kumpulan: <span x-text="student.group"></span></div>
+          </div>
+        </template>
+      </div>
+      
+      <!-- No Results -->
+      <template x-if="filteredStudents().length === 0">
+        <div class="text-center py-8 text-gray-500">
+          Tiada pelajar ditemui. Sila cuba carian lain.
+        </div>
+      </template>
+      
+      <!-- Selected Student Summary -->
+      <template x-if="selectedStudent">
+        <div class="mt-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+          <div class="flex items-center">
+            <svg class="w-5 h-5 text-blue-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+            </svg>
+            <h3 class="font-semibold text-blue-800">Pelajar Terpilih: <span x-text="getStudentName()"></span></h3>
+          </div>
+          <div class="grid grid-cols-3 gap-4 mt-3 text-sm">
+            <div class="bg-white rounded p-2 text-center">
+              <div class="text-blue-700 font-medium">Tugasan 1</div>
+              <div class="text-2xl font-bold text-blue-800" x-text="getTotalScore('practical')"></div>
+              <div class="text-gray-600">/60</div>
+            </div>
+            <div class="bg-white rounded p-2 text-center">
+              <div class="text-green-700 font-medium">Tugasan 2</div>
+              <div class="text-2xl font-bold text-green-800" x-text="getTotalScore('simulation')"></div>
+              <div class="text-gray-600">/40</div>
+            </div>
+            <div class="bg-white rounded p-2 text-center">
+              <div class="text-purple-700 font-medium">Jumlah</div>
+              <div class="text-2xl font-bold text-purple-800" x-text="getOverallScore()"></div>
+              <div class="text-gray-600">/100</div>
+            </div>
+          </div>
+        </div>
+      </template>
+    </div>
+
+    <!-- Tabs -->
+    <div class="bg-white shadow-md rounded-lg overflow-hidden" x-show="selectedStudent">
+      <div class="flex border-b">
+        <button 
+          @click="activeTab = 'practical'" 
+          :class="{ 'border-blue-600 bg-blue-50 text-blue-800': activeTab === 'practical', 'border-transparent hover:text-blue-600': activeTab !== 'practical' }"
+          class="px-6 py-4 font-medium text-sm border-b-2 flex-1 text-center">
+          Tugasan 1: Ujian Amali Kemahiran (60%)
+        </button>
+        <button 
+          @click="activeTab = 'simulation'" 
+          :class="{ 'border-blue-600 bg-blue-50 text-blue-800': activeTab === 'simulation', 'border-transparent hover:text-blue-600': activeTab !== 'simulation' }"
+          class="px-6 py-4 font-medium text-sm border-b-2 flex-1 text-center">
+          Tugasan 2: Simulasi Rancangan Latihan (40%)
+        </button>
+      </div>
+
+      <!-- Tugasan 1: Amali Kemahiran -->
+      <div x-show="activeTab === 'practical'" class="p-6">
+        <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+          <span class="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold mr-3">1</span>
+          Tugasan 1: Ujian Amali Kemahiran (60%)
+        </h2>
+        
+        <!-- Sepakan Leret -->
+        <div class="mb-8 p-4 bg-white rounded-lg shadow-sm border border-gray-200">
+          <div class="criteria-header mb-4">Sepakan Leret (15%)</div>
+          <div class="grid grid-cols-6 gap-1 mb-3">
+            <div class="rubric-header">Tahap</div>
+            <div class="rubric-header">Amat Cemerlang</div>
+            <div class="rubric-header">Cemerlang</div>
+            <div class="rubric-header">Kepujian</div>
+            <div class="rubric-header">Sederhana</div>
+            <div class="rubric-header">Lemah</div>
+            
+            <div class="score-cell rubric-cell font-medium">Skor</div>
+            <div class="rubric-cell bg-green-50">13.5–15.0</div>
+            <div class="rubric-cell bg-blue-50">11.3–13.4</div>
+            <div class="rubric-cell bg-yellow-50">9.0–11.2</div>
+            <div class="rubric-cell bg-orange-50">7.5–8.9</div>
+            <div class="rubric-cell bg-red-50"><7.5</div>
+          </div>
+          <div class="grid grid-cols-6 gap-1">
+            <div class="rubric-cell bg-gray-100 font-medium">Kriteria</div>
+            <div class="rubric-cell text-xs">Melaksanakan kemahiran sepakan leret dengan teknik yang sangat tepat, mantap dan konsisten. Memahami sepenuhnya arahan terpimpin</div>
+            <div class="rubric-cell text-xs">Melaksanakan kemahiran sepakan leret dengan teknik yang tepat dan berkesan dengan kesilapan minimum. Arahan terpimpin diikuti dengan baik.</div>
+            <div class="rubric-cell text-xs">Melaksanakan kemahiran sepakan leret dengan teknik yang sederhana, ada ketidaktepatan tetapi masih berfungsi. Arahan terpimpin diikuti dengan beberapa bantuan.</div>
+            <div class="rubric-cell text-xs">Pelaksanaan lemah dengan banyak kesilapan teknikal sepakan leret. Memerlukan bantuan kerap walaupun diberi arahan terpimpin.</div>
+            <div class="rubric-cell text-xs">Gagal melaksanakan kemahiran asas sepakan leret walaupun diberi tunjuk ajar dan arahan terpimpin.</div>
+          </div>
+          <div class="mt-4 flex items-center">
+            <label class="block text-sm font-medium text-gray-700 mr-3 min-w-32">Markah (0–15):</label>
+            <input type="number" step="0.1" min="0" max="15" x-model="scores.practical.kick" class="w-32 p-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"/>
+          </div>
+        </div>
+
+        <!-- Hantaran Pendek -->
+        <div class="mb-8 p-4 bg-white rounded-lg shadow-sm border border-gray-200">
+          <div class="criteria-header mb-4">Hantaran Pendek (10%)</div>
+          <div class="grid grid-cols-6 gap-1 mb-3">
+            <div class="rubric-header">Tahap</div>
+            <div class="rubric-header">Amat Cemerlang</div>
+            <div class="rubric-header">Cemerlang</div>
+            <div class="rubric-header">Kepujian</div>
+            <div class="rubric-header">Sederhana</div>
+            <div class="rubric-header">Lemah</div>
+            
+            <div class="score-cell rubric-cell font-medium">Skor</div>
+            <div class="rubric-cell bg-green-50">9.0–10.0</div>
+            <div class="rubric-cell bg-blue-50">7.5–8.9</div>
+            <div class="rubric-cell bg-yellow-50">6.0–7.4</div>
+            <div class="rubric-cell bg-orange-50">5.0–5.9</div>
+            <div class="rubric-cell bg-red-50"><5.0</div>
+          </div>
+          <div class="grid grid-cols-6 gap-1">
+            <div class="rubric-cell bg-gray-100 font-medium">Kriteria</div>
+            <div class="rubric-cell text-xs">Melaksanakan kemahiran hantaran pendek dengan teknik yang sangat tepat, mantap dan konsisten. Memahami sepenuhnya arahan terpimpin</div>
+            <div class="rubric-cell text-xs">Melaksanakan kemahiran hantaran pendek dengan teknik yang tepat dan berkesan dengan kesilapan minimum. Arahan terpimpin diikuti dengan baik</div>
+            <div class="rubric-cell text-xs">Melaksanakan kemahiran hantaran pendek dengan teknik yang sederhana, ada ketidaktepatan tetapi masih berfungsi. Arahan terpimpin diikuti dengan beberapa bantuan.</div>
+            <div class="rubric-cell text-xs">Pelaksanaan lemah dengan banyak kesilapan teknikal hantaran pendek. Memerlukan bantuan kerap walaupun diberi arahan terpimpin.</div>
+            <div class="rubric-cell text-xs">Gagal melaksanakan kemahiran asas hantaran pendek walaupun diberi tunjuk ajar dan arahan terpimpin.</div>
+          </div>
+          <div class="mt-4 flex items-center">
+            <label class="block text-sm font-medium text-gray-700 mr-3 min-w-32">Markah (0–10):</label>
+            <input type="number" step="0.1" min="0" max="10" x-model="scores.practical.pass" class="w-32 p-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"/>
+          </div>
+        </div>
+
+        <!-- Menjaring -->
+        <div class="mb-8 p-4 bg-white rounded-lg shadow-sm border border-gray-200">
+          <div class="criteria-header mb-4">Menjaring (10%)</div>
+          <div class="grid grid-cols-6 gap-1 mb-3">
+            <div class="rubric-header">Tahap</div>
+            <div class="rubric-header">Amat Cemerlang</div>
+            <div class="rubric-header">Cemerlang</div>
+            <div class="rubric-header">Kepujian</div>
+            <div class="rubric-header">Sederhana</div>
+            <div class="rubric-header">Lemah</div>
+            
+            <div class="score-cell rubric-cell font-medium">Skor</div>
+            <div class="rubric-cell bg-green-50">9.0–10.0</div>
+            <div class="rubric-cell bg-blue-50">7.5–8.9</div>
+            <div class="rubric-cell bg-yellow-50">6.0–7.4</div>
+            <div class="rubric-cell bg-orange-50">5.0–5.9</div>
+            <div class="rubric-cell bg-red-50"><5.0</div>
+          </div>
+          <div class="grid grid-cols-6 gap-1">
+            <div class="rubric-cell bg-gray-100 font-medium">Kriteria</div>
+            <div class="rubric-cell text-xs">Melaksanakan kemahiran menjaring dengan teknik yang sangat tepat, mantap dan konsisten. Memahami sepenuhnya arahan terpimpin</div>
+            <div class="rubric-cell text-xs">Melaksanakan kemahiran menjaring dengan teknik yang tepat dan berkesan dengan kesilapan minimum. Arahan terpimpin diikuti dengan baik</div>
+            <div class="rubric-cell text-xs">Melaksanakan kemahiran menjaring dengan teknik yang tepat dan berkesan dengan kesilapan minimum. Arahan terpimpin diikuti dengan baik</div>
+            <div class="rubric-cell text-xs">Melaksanakan kemahiran menjaring dengan teknik yang sederhana, ada ketidaktepatan tetapi masih berfungsi. Arahan terpimpin diikuti dengan beberapa bantuan.</div>
+            <div class="rubric-cell text-xs">Pelaksanaan lemah dengan banyak kesilapan teknikal menjaring. Memerlukan bantuan kerap walaupun diberi arahan terpimpin.</div>
+            <div class="rubric-cell text-xs">Gagal melaksanakan kemahiran asas menjaring walaupun diberi tunjuk ajar dan arahan terpimpin.</div>
+          </div>
+          <div class="mt-4 flex items-center">
+            <label class="block text-sm font-medium text-gray-700 mr-3 min-w-32">Markah (0–10):</label>
+            <input type="number" step="0.1" min="0" max="10" x-model="scores.practical.shoot" class="w-32 p-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"/>
+          </div>
+        </div>
+
+        <!-- Menjaga Gol -->
+        <div class="mb-8 p-4 bg-white rounded-lg shadow-sm border border-gray-200">
+          <div class="criteria-header mb-4">Menjaga Gol (10%)</div>
+          <div class="grid grid-cols-6 gap-1 mb-3">
+            <div class="rubric-header">Tahap</div>
+            <div class="rubric-header">Amat Cemerlang</div>
+            <div class="rubric-header">Cemerlang</div>
+            <div class="rubric-header">Kepujian</div>
+            <div class="rubric-header">Sederhana</div>
+            <div class="rubric-header">Lemah</div>
+            
+            <div class="score-cell rubric-cell font-medium">Skor</div>
+            <div class="rubric-cell bg-green-50">9.0–10.0</div>
+            <div class="rubric-cell bg-blue-50">7.5–8.9</div>
+            <div class="rubric-cell bg-yellow-50">6.0–7.4</div>
+            <div class="rubric-cell bg-orange-50">5.0–5.9</div>
+            <div class="rubric-cell bg-red-50"><5.0</div>
+          </div>
+          <div class="grid grid-cols-6 gap-1">
+            <div class="rubric-cell bg-gray-100 font-medium">Kriteria</div>
+            <div class="rubric-cell text-xs">Melaksanakan kemahiran menjaga gol dengan teknik yang sangat tepat, mantap dan konsisten. Memahami sepenuhnya arahan terpimpin</div>
+            <div class="rubric-cell text-xs">Melaksanakan kemahiran menjaga gol dengan teknik yang tepat dan berkesan dengan kesilapan minimum. Arahan terpimpin diikuti dengan baik</div>
+            <div class="rubric-cell text-xs">Melaksanakan kemahiran menjaga gol dengan teknik yang tepat dan berkesan dengan kesilapan minimum. Arahan terpimpin diikuti dengan baik</div>
+            <div class="rubric-cell text-xs">Melaksanakan kemahiran menjaga gol dengan teknik yang sederhana, ada ketidaktepatan tetapi masih berfungsi. Arahan terpimpin diikuti dengan beberapa bantuan.</div>
+            <div class="rubric-cell text-xs">Pelaksanaan lemah dengan banyak kesilapan teknikal menjaga gol. Memerlukan bantuan kerap walaupun diberi arahan terpimpin.</div>
+            <div class="rubric-cell text-xs">Gagal melaksanakan kemahiran asas menjaga gol walaupun diberi tunjuk ajar dan arahan terpimpin.</div>
+          </div>
+          <div class="mt-4 flex items-center">
+            <label class="block text-sm font-medium text-gray-700 mr-3 min-w-32">Markah (0–10):</label>
+            <input type="number" step="0.1" min="0" max="10" x-model="scores.practical.goalkeeper" class="w-32 p-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"/>
+          </div>
+        </div>
+
+        <!-- Asas Kepegawaian -->
+        <div class="mb-8 p-4 bg-white rounded-lg shadow-sm border border-gray-200">
+          <div class="criteria-header mb-4">Asas Kepegawaian (15%)</div>
+          <div class="grid grid-cols-6 gap-1 mb-3">
+            <div class="rubric-header">Tahap</div>
+            <div class="rubric-header">Amat Cemerlang</div>
+            <div class="rubric-header">Cemerlang</div>
+            <div class="rubric-header">Kepujian</div>
+            <div class="rubric-header">Sederhana</div>
+            <div class="rubric-header">Lemah</div>
+            
+            <div class="score-cell rubric-cell font-medium">Skor</div>
+            <div class="rubric-cell bg-green-50">13.5–15.0</div>
+            <div class="rubric-cell bg-blue-50">11.3–13.4</div>
+            <div class="rubric-cell bg-yellow-50">9.0–11.2</div>
+            <div class="rubric-cell bg-orange-50">7.5–8.9</div>
+            <div class="rubric-cell bg-red-50"><7.5</div>
+          </div>
+          <div class="grid grid-cols-6 gap-1">
+            <div class="rubric-cell bg-gray-100 font-medium">Kriteria</div>
+            <div class="rubric-cell text-xs">Mengetahui dan menerangkan semua aspek kepegawaian dengan sangat tepat, jelas, dan meyakinkan</div>
+            <div class="rubric-cell text-xs">Mengetahui dan menerangkan kebanyakan aspek dengan jelas dan betul.</div>
+            <div class="rubric-cell text-xs">Mengetahui dan menerangkan kebanyakan aspek dengan jelas dan betul.</div>
+            <div class="rubric-cell text-xs">Menunjukkan pengetahuan asas yang baik tetapi terdapat kekeliruan dalam beberapa perkara.</div>
+            <div class="rubric-cell text-xs">Pengetahuan kepegawaian kurang tepat dan cetek. Banyak kesalahan fakta.</div>
+            <div class="rubric-cell text-xs">Tidak menunjukkan pemahaman yang jelas tentang kepegawaian. Gagal mengenal pasti fakta asas.</div>
+          </div>
+          <div class="mt-4 flex items-center">
+            <label class="block text-sm font-medium text-gray-700 mr-3 min-w-32">Markah (0–15):</label>
+            <input type="number" step="0.1" min="0" max="15" x-model="scores.practical.official" class="w-32 p-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"/>
+          </div>
+        </div>
+
+        <!-- Catatan Tugasan 1 -->
+        <div class="mb-6 p-4 bg-white rounded-lg shadow-sm border border-gray-200">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Ulasan untuk Tugasan 1:</label>
+          <textarea x-model="comments.practical" rows="3" class="w-full p-3 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Masukkan ulasan atau pemerhatian pensyarah..."></textarea>
+        </div>
+
+        <div class="text-right">
+          <button @click="savePractical()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-8 py-3 rounded-lg transition duration-200 shadow-sm hover:shadow">
+            <svg class="w-5 h-5 inline-block mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V7.5a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+            </svg>
+            Simpan Tugasan 1
+          </button>
+        </div>
+      </div>
+
+      <!-- Tugasan 2: Simulasi Rancangan Latihan -->
+      <div x-show="activeTab === 'simulation'" class="p-6">
+        <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+          <span class="bg-green-600 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold mr-3">2</span>
+          Tugasan 2: Simulasi Rancangan Latihan (40%)
+        </h2>
+
+        <!-- Kemahiran Kognitif -->
+        <div class="mb-8 p-4 bg-white rounded-lg shadow-sm border border-gray-200">
+          <div class="criteria-header mb-4">Kemahiran Kognitif (HP2 – 20%)</div>
+          <div class="grid grid-cols-6 gap-1 mb-3">
+            <div class="rubric-header">Tahap</div>
+            <div class="rubric-header">Amat Cemerlang</div>
+            <div class="rubric-header">Cemerlang</div>
+            <div class="rubric-header">Kepujian</div>
+            <div class="rubric-header">Sederhana</div>
+            <div class="rubric-header">Lemah</div>
+            
+            <div class="score-cell rubric-cell font-medium">Skor</div>
+            <div class="rubric-cell bg-green-50">18.0–20.0</div>
+            <div class="rubric-cell bg-blue-50">15.0–17.9</div>
+            <div class="rubric-cell bg-yellow-50">12.0–14.9</div>
+            <div class="rubric-cell bg-orange-50">10.0–11.9</div>
+            <div class="rubric-cell bg-red-50"><10.0</div>
+          </div>
+          <div class="grid grid-cols-6 gap-1">
+            <div class="rubric-cell bg-gray-100 font-medium">Kriteria</div>
+            <div class="rubric-cell text-xs">● Menyediakan rancangan latihan dengan struktur mantap, isi kandungan sangat relevan dan tersusun, menunjukkan pemahaman aplikasi amat tinggi (HP2, C3). ● Sangat berkebolehan mengaplikasikan pengetahuan dan kemahiran asas dalam rancangan latihan secara terperinci dan jelas (KKG1).</div>
+            <div class="rubric-cell text-xs">● Menyediakan rancangan latihan dengan baik, ada aplikasi pengetahuan yang tepat, hanya sedikit kekurangan dari segi susunan atau fokus, menunjukkan pemahaman aplikasi tinggi (HP2, C3). ● Berkebolehan mengaplikasikan pengetahuan dan kemahiran asas dalam rancangan latihan secara terperinci dan jelas (KKG1).</div>
+            <div class="rubric-cell text-xs">● Menyediakan rancangan latihan dengan isi kandungan mencukupi tetapi aplikasi pengetahuan kurang mendalam atau kurang tepat (HP2, C3). ● Berkebolehan mengaplikasikan pengetahuan dan kemahiran asas dalam rancangan latihan (KKG1).</div>
+            <div class="rubric-cell text-xs">● Menyediakan rancangan latihan tidak tersusun atau tidak mencerminkan pemahaman aplikasi dengan betul (HP2, C3). ● Berkebolehan mengaplikasikan pengetahuan dan kemahiran asas dalam rancangan latihan yang terhad (KKG1).</div>
+            <div class="rubric-cell text-xs">● Menyediakan rancangan latihan dengan kandungan sangat lemah dan tidak menggambarkan aplikasi pengetahuan kemahiran (HP2, C3). ● Tidak berkebolehan mengaplikasikan pengetahuan dan kemahiran asas dalam rancangan latihan menggunakan kemahiran berfikir (KKG1).</div>
+          </div>
+          <div class="mt-4 flex items-center">
+            <label class="block text-sm font-medium text-gray-700 mr-3 min-w-32">Markah (0–20):</label>
+            <input type="number" step="0.1" min="0" max="20" x-model="scores.simulation.cognitive" class="w-32 p-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"/>
+          </div>
+        </div>
+
+        <!-- Kemahiran Komunikasi -->
+        <div class="mb-8 p-4 bg-white rounded-lg shadow-sm border border-gray-200">
+          <div class="criteria-header mb-4">Kemahiran Komunikasi (HP5 – 20%)</div>
+          <div class="grid grid-cols-6 gap-1 mb-3">
+            <div class="rubric-header">Tahap</div>
+            <div class="rubric-header">Amat Cemerlang</div>
+            <div class="rubric-header">Cemerlang</div>
+            <div class="rubric-header">Kepujian</div>
+            <div class="rubric-header">Sederhana</div>
+            <div class="rubric-header">Lemah</div>
+            
+            <div class="score-cell rubric-cell font-medium">Skor</div>
+            <div class="rubric-cell bg-green-50">18.0–20.0</div>
+            <div class="rubric-cell bg-blue-50">15.0–17.9</div>
+            <div class="rubric-cell bg-yellow-50">12.0–14.9</div>
+            <div class="rubric-cell bg-orange-50">10.0–11.9</div>
+            <div class="rubric-cell bg-red-50"><10.0</div>
+          </div>
+          <div class="grid grid-cols-6 gap-1">
+            <div class="rubric-cell bg-gray-100 font-medium">Kriteria</div>
+            <div class="rubric-cell text-xs">● Menyampaikan idea dengan sangat jelas, yakin, koheren dan meyakinkan (HP5, KMK1). ● Berkebolehan mengorganisasi latihan kemahiran dengan mengesan dan memperbaiki kesalahan serta kelemahan perlakuan pemain secara amat konsisten (A4).</div>
+            <div class="rubric-cell text-xs">● Menyampaikan idea dengan jelas, yakin, koheren dan meyakinkan (HP5, KMK1). ● Berkebolehan mengorganisasi latihan kemahiran dengan mengesan dan memperbaiki kesalahan serta kelemahan perlakuan pemain secara konsisten (A4).</div>
+            <div class="rubric-cell text-xs">● Menyampaikan idea dengan baik, yakin, koheren dan meyakinkan namun memerlukan sedikit penambahbaikan (HP5, KMK1). ● Berkebolehan mengorganisasi latihan kemahiran dengan mengesan dan memperbaiki kesalahan serta kelemahan perlakuan pemain namun kurang konsisten (A4).</div>
+            <div class="rubric-cell text-xs">● Menyampaikan idea tetapi kurang jelas, kurang koheren, kurang yakin dan meyakinkan (HP5, KMK1). ● Kurang berkebolehan mengorganisasi latihan kemahiran dengan kurang mengesan dan memperbaiki kesalahan serta kelemahan perlakuan pemain (A4).</div>
+            <div class="rubric-cell text-xs">● Tidak boleh menyampaikan idea dengan jelas, koheren, yakin dan meyakinkan (HP5, KMK1). ● Tidak berkebolehan mengorganisasi latihan kemahiran dan tidak dapat mengesan dan memperbaiki kesalahan serta kelemahan perlakuan pemain (A4).</div>
+          </div>
+          <div class="mt-4 flex items-center">
+            <label class="block text-sm font-medium text-gray-700 mr-3 min-w-32">Markah (0–20):</label>
+            <input type="number" step="0.1" min="0" max="20" x-model="scores.simulation.communication" class="w-32 p-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"/>
+          </div>
+        </div>
+
+        <!-- Catatan Tugasan 2 -->
+        <div class="mb-6 p-4 bg-white rounded-lg shadow-sm border border-gray-200">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Ulasan untuk Tugasan 2:</label>
+          <textarea x-model="comments.simulation" rows="3" class="w-full p-3 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500" placeholder="Masukkan ulasan atau pemerhatian pensyarah..."></textarea>
+        </div>
+
+        <div class="text-right">
+          <button @click="saveSimulation()" class="bg-green-600 hover:bg-green-700 text-white font-medium px-8 py-3 rounded-lg transition duration-200 shadow-sm hover:shadow">
+            <svg class="w-5 h-5 inline-block mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V7.5a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+            </svg>
+            Simpan Tugasan 2
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Summary Footer -->
+    <template x-if="selectedStudent">
+      <div class="mt-8 bg-white shadow-md rounded-lg p-6">
+        <h3 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+          <svg class="w-6 h-6 text-purple-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V7.5a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+          </svg>
+          Ringkasan Penilaian Akhir
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="p-5 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl border border-blue-200">
+            <div class="flex items-center mb-2">
+              <svg class="w-5 h-5 text-blue-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"></path>
+              </svg>
+              <p class="text-sm font-medium text-blue-800">Tugasan 1 (Amali)</p>
+            </div>
+            <p class="text-3xl font-bold text-blue-900" x-text="getTotalScore('practical')"></p>
+            <p class="text-blue-600">/60 markah</p>
+          </div>
+          <div class="p-5 bg-gradient-to-br from-green-50 to-green-100 rounded-xl border border-green-200">
+            <div class="flex items-center mb-2">
+              <svg class="w-5 h-5 text-green-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+              </svg>
+              <p class="text-sm font-medium text-green-800">Tugasan 2 (Simulasi)</p>
+            </div>
+            <p class="text-3xl font-bold text-green-900" x-text="getTotalScore('simulation')"></p>
+            <p class="text-green-600">/40 markah</p>
+          </div>
+          <div class="p-5 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl border border-purple-200">
+            <div class="flex items-center mb-2">
+              <svg class="w-5 h-5 text-purple-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
+              </svg>
+              <p class="text-sm font-medium text-purple-800">Jumlah Markah</p>
+            </div>
+            <p class="text-3xl font-bold text-purple-900" x-text="getOverallScore()"></p>
+            <p class="text-purple-600">/100 markah</p>
+          </div>
+        </div>
+        
+        <!-- Export Button -->
+        <div class="mt-8 text-center">
+          <button 
+            @click="exportResults()" 
+            class="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-bold px-8 py-3 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+          >
+            <svg class="w-5 h-5 inline-block mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V7.5a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+            </svg>
+            EKSPORT KE CSV
+          </button>
+        </div>
+      </div>
+    </template>
+  </div>
+
+  <script>
+    function gradingApp() {
+      return {
+        activeTab: 'practical',
+        selectedStudent: null,
+        searchQuery: '',
+        students: [
+          { id: 1, name: 'HARIS HAKIMI BIN MOHD SUKRY', matrix: '2024182440031', group: 'PBKK1' },
+          { id: 2, name: 'LEI JIA HONG BRANDON', matrix: '2024182440034', group: 'PBKK1' },
+          { id: 3, name: 'LEOW PIN WUEN', matrix: '2024182440035', group: 'PBKK1' },
+          { id: 4, name: 'MUHAMMAD JUAN IRFAN BIN MOHD HAZARI', matrix: '2024182440038', group: 'PBKK1' },
+          { id: 5, name: 'NURUL AIN BINTI ADNAN', matrix: '2024182440043', group: 'PBKK1' },
+          { id: 6, name: 'SITI KHADIJAH BINTI AZRUL', matrix: '2024182440047', group: 'PBKK1' },
+          { id: 7, name: 'YONG YING JIE', matrix: '2024182440052', group: 'PBKK1' },
+          { id: 8, name: 'MUHAMMAD UMMARSHAH FAHMI BIN NOOR AZLAN', matrix: '2024182440065', group: 'PIMK 1' },
+          { id: 9, name: 'MUHAMMAD FARIS FAHMI BIN ASRUL AFFINDY', matrix: '2024182440087', group: 'PIMK 2' },
+          { id: 10, name: 'MUHAMMAD NAZIR MUBIN BIN ZAKI', matrix: '2024182440090', group: 'PIMK 2' },
+          { id: 11, name: 'NUR IZYAN \'ADNIN BINTI ZAKARIA', matrix: '2024182440119', group: 'PIMK 3' },
+          { id: 12, name: 'AMZAR MUQRI BIN AB MANAN', matrix: '2024182440193', group: 'PBKK2(ssm)' },
+          { id: 13, name: 'MAIDATUL WAHYU BINTI MOHD ARIF', matrix: '2024182440197', group: 'PBKK2(ssm)' },
+          { id: 14, name: 'NUR ALIA IZZATIE BINTI MOHD NASIR', matrix: '2024182440206', group: 'PBKK2(ssm)' },
+          { id: 15, name: 'NUR DANIA BATRISYA BINTI MOHAMAD RUDZAY', matrix: '2024182440208', group: 'PBKK2(ssm)' },
+          { id: 16, name: 'NUR IZZATI ALYAA BINTI MD LAZIM', matrix: '2024182440211', group: 'PBKK2(ssm)' },
+          { id: 17, name: 'NUR SAIDATUL ALISA BINTI ISMAIL', matrix: '2024182440213', group: 'PBKK2(ssm)' },
+          { id: 18, name: 'SAMMAITUHA NUR NAJWA BINTI AMRAN', matrix: '2024182440215', group: 'PBKK2(ssm)' },
+          { id: 19, name: 'WAN ASIAH SOFYA BINTI W AZHARAN', matrix: '2024182440218', group: 'PBKK2(ssm)' },
+          { id: 20, name: 'AHMAD FHAIZZ AIMAN BIN AZMI', matrix: '2024182440220', group: 'PIMK 5(ssm)' },
+          { id: 21, name: 'MOHAMED HAZIQ BIN MOHD ZAKI', matrix: '2024182440224', group: 'PIMK 5(ssm)' },
+          { id: 22, name: 'MUHAMMAD ALIF HAFIZ BIN MOHD NAZRI', matrix: '2024182440227', group: 'PIMK 5(ssm)' },
+          { id: 23, name: 'MUHAMMAD ZULKARNAIN BIN NORAZMAN', matrix: '2024182440231', group: 'PIMK 5(ssm)' }
+        ],
+        scores: {
+          practical: {
+            kick: '',
+            pass: '',
+            shoot: '',
+            goalkeeper: '',
+            official: ''
+          },
+          simulation: {
+            cognitive: '',
+            communication: ''
+          }
+        },
+        comments: {
+          practical: '',
+          simulation: ''
+        },
+        
+        selectStudent(id) {
+          this.selectedStudent = id;
+          // Initialize scores if not already present
+          if (!this.scores.practical.kick) {
+            this.scores.practical = {
+              kick: '',
+              pass: '',
+              shoot: '',
+              goalkeeper: '',
+              official: ''
+            };
+          }
+          if (!this.scores.simulation.cognitive) {
+            this.scores.simulation = {
+              cognitive: '',
+              communication: ''
+            };
+          }
+        },
+        
+        getStudentName() {
+          const student = this.students.find(s => s.id === this.selectedStudent);
+          return student ? student.name : '';
+        },
+        
+        getTotalScore(type) {
+          if (type === 'practical') {
+            return (
+              (parseFloat(this.scores.practical.kick) || 0) +
+              (parseFloat(this.scores.practical.pass) || 0) +
+              (parseFloat(this.scores.practical.shoot) || 0) +
+              (parseFloat(this.scores.practical.goalkeeper) || 0) +
+              (parseFloat(this.scores.practical.official) || 0)
+            ).toFixed(1);
+          } else {
+            return (
+              (parseFloat(this.scores.simulation.cognitive) || 0) +
+              (parseFloat(this.scores.simulation.communication) || 0)
+            ).toFixed(1);
+          }
+        },
+        
+        getOverallScore() {
+          return (
+            (parseFloat(this.getTotalScore('practical')) || 0) +
+            (parseFloat(this.getTotalScore('simulation')) || 0)
+          ).toFixed(1);
+        },
+        
+        filteredStudents() {
+          if (!this.searchQuery) {
+            return this.students;
+          }
+          const query = this.searchQuery.toLowerCase();
+          return this.students.filter(student => 
+            student.name.toLowerCase().includes(query) || 
+            student.matrix.includes(query) ||
+            student.group.toLowerCase().includes(query)
+          );
+        },
+        
+        savePractical() {
+          if (!this.selectedStudent) {
+            alert('Sila pilih pelajar terlebih dahulu.');
+            return;
+          }
+          alert(`Markah Tugasan 1 telah disimpan untuk ${this.getStudentName()}`);
+        },
+        
+        saveSimulation() {
+          if (!this.selectedStudent) {
+            alert('Sila pilih pelajar terlebih dahulu.');
+            return;
+          }
+          alert(`Markah Tugasan 2 telah disimpan untuk ${this.getStudentName()}`);
+        },
+        
+        exportResults() {
+          if (!this.selectedStudent) {
+            alert('Sila pilih pelajar terlebih dahulu.');
+            return;
+          }
+          
+          const student = this.getStudentName();
+          const studentData = this.students.find(s => s.id === this.selectedStudent);
+          const practical = this.getTotalScore('practical');
+          const simulation = this.getTotalScore('simulation');
+          const overall = this.getOverallScore();
+          
+          const csvContent = [
+            ['Nama Pelajar', 'No Matrik', 'Kumpulan', 'Tugasan 1 (60%)', 'Tugasan 2 (40%)', 'Jumlah (100%)'],
+            [student, studentData.matrix, studentData.group, practical, simulation, overall]
+          ].map(row => row.join(',')).join('\n');
+          
+          const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.setAttribute('hidden', '');
+          a.setAttribute('href', url);
+          a.setAttribute('download', `Pentaksiran_Futsal_${studentData.matrix}.csv`);
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        }
+      };
+    }
+  </script>
+</body>
+</html>
